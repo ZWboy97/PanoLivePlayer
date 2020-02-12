@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>全景图-点击热区</title>
+    <title>全景热点标签互动Demo</title>
     <script type="text/javascript">
         !function () {
             var root = document.documentElement;
@@ -71,8 +71,27 @@
     <script type="text/javascript" src="./js/classie.js"></script>
     <script type="text/javascript">
         class panorama {
+
             constructor() {
-                this.scene = new THREE.Scene();
+                this.isUserInteracting = false;     // 标记用户是否正在交互中
+                this.onMouseDownMouseX = 0;         // 鼠标点击的初始坐标x
+                this.onMouseDownMouseY = 0;         // 鼠标点击的初始坐标y
+                this.lon = 0;                       // 经度
+                this.onMouseDownLon = 0;
+                this.lat = 0;                       // 纬度
+                this.onMouseDownLat = 0;
+                this.phi = 0;
+                this.theta = 0;
+                this.distance = 300;
+                this.onPointerDownPointerX = 0;
+                this.onPointerDownPointerY = 0;
+                this.onPointerDownLon = 0;
+                this.onPointerDownLat = 0;
+                this.browser = window.navigator.userAgent.toLowerCase();
+                this.camera;
+                this.video;
+                this.scene;
+
                 this.initCamera();
                 this.initMesh();
                 this.initButtons();
@@ -81,35 +100,120 @@
                 this.initModal();
                 this.bindEvent();
             }
-
+            // 初始化相机
             initCamera() {
-                let camera = this.camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 1, 1100);
-                camera.position.set(0, 0, 0);
-
-                this.controls = new THREE.DeviceOrientationControls(camera);
-                this.controls.connect();
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1100);
+                this.camera.position.set(0, 0, 0);
+                this.camera.target = new THREE.Vector3(0, 0, 0);
+                // TODO 移动端传感器控制
+                // this.controls = new THREE.DeviceOrientationControls(camera);
+                // this.controls.connect();
             }
+
             initMesh() {
-                let geometry = new THREE.SphereGeometry(500, 60, 40);
+                // 创建几何体
+                let geometry = new THREE.SphereGeometry(500, 60, 40); // 球体
                 geometry.scale(-1, 1, 1);
-                //geometry.rotateY(-Math.PI / 2)
-
-                var video = document.getElementById('video');
-                video.play();
-
+                // 加载视频资源
+                this.video = document.getElementById('video');
+                this.video.setAttribute('webkit-playsinline', 'webkit-playsinline');
+                this.video.play();
+                // 添加视频作为纹理，并纹理作为材质
                 var texture = new THREE.VideoTexture(video);
+                texture.minFilter = THREE.LinearFilter;
+                texture.format = THREE.RGBFormat;
                 var material = new THREE.MeshBasicMaterial({ map: texture });
-
-
-                // let material = new THREE.MeshBasicMaterial({
-                //     map: new THREE.TextureLoader().load('./textures/SphericalMap.jpg')
-                // });
-
+                // 创建网格 = 几何体 + 材质
                 let mesh = new THREE.Mesh(geometry, material);
+                // 创建场景，并添加mesh
+                this.scene = new THREE.Scene();
                 this.scene.add(mesh);
+
+                // 添加事件监听
+                if (this.browser.indexOf('mobile') > 0) {
+                    document.addEventListener('touchstart', this.onTouchstart, false);
+                    document.addEventListener('touchmove', this.onTouchmove, false);
+                    document.addEventListener('touchend', this.onTouchend, false);
+                    document.addEventListener('wheel', this.onDocumentMouseWheel, false);
+                } else {
+                    document.addEventListener('mousedown', this.onDocumentMouseDown, false);
+                    document.addEventListener('mousemove', this.onDocumentMouseMove, false);
+                    document.addEventListener('mouseup', this.onDocumentMouseUp, false);
+                    document.addEventListener('wheel', this.onDocumentMouseWheel, false);
+                }
+                window.addEventListener('resize', this.onWindowResize, false); //
+            }
+
+            onWindowResize = () => {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            onDocumentMouseDown = (event) => {
+                event.preventDefault();
+                console.log('鼠标点击Down')
+                this.isUserInteracting = true;
+                // 记录鼠标点击屏幕坐标
+                this.onPointerDownPointerX = event.clientX;
+                this.onPointerDownPointerY = event.clientY;
+                // 记录点击时候经纬度
+                this.onPointerDownLon = this.lon; // 经度
+                this.onPointerDownLat = this.lat; // 纬度
+            }
+
+            onTouchstart = (event) => {
+                if (event.targetTouches.length == 1) {
+                    event.preventDefault();
+                    this.isUserInteracting = true;
+                    // 记录滑动开始的坐标
+                    var touch = event.targetTouches[0];
+                    this.onPointerDownPointerX = touch.pageX - 50; // 把元素放在手指所在的位置
+                    this.onPointerDownPointerY = touch.pageY - 50;
+                    // 记录滑动开始时候的经纬度
+                    this.onPointerDownLon = this.lon; // 经度
+                    this.onPointerDownLat = this.lat; // 纬度
+                }
+            }
+
+            onDocumentMouseMove = (event) => {
+                if (this.isUserInteracting === true) {
+                    // 在鼠标Down位置叠加偏移量
+                    this.lon = (this.onPointerDownPointerX - event.clientX) * 0.1 + this.onPointerDownLon;
+                    this.lat = (this.onPointerDownPointerY - event.clientY) * 0.1 + this.onPointerDownLat;
+                    // 用于立体场景音效
+                    // mouseActionLocal([lon, lat]); 
+                }
+            }
+
+            onTouchmove = (event) => {
+                if (this.isUserInteracting === true) {
+                    var touch = event.targetTouches[0];
+                    this.lon = (parseFloat(this.onPointerDownPointerX) - touch.pageX) * 0.1 + this.onPointerDownLon;
+                    this.lat = (parseFloat(this.onPointerDownPointerY - touch.pageY)) * 0.1 + this.onPointerDownLat;
+                    // 用于立体场景音效
+                    // mouseActionLocal([lon, lat]); 
+                }
+            }
+
+            onDocumentMouseUp = (event) => {
+                this.isUserInteracting = false;
+            }
+
+            onTouchend = (event) => {
+                this.isUserInteracting = false;
+            }
+
+            onDocumentMouseWheel = (event) => {
+                this.distance += event.deltaY * 0.5;
+                if (this.distance >= 500) {
+                    this.distance = 500;
+                }
+                if (this.distance <= 0) {
+                    this.distance = 1;
+                }
             }
             initButtons() {
-
                 this.buttonList = [
                     {
                         phi: -90,
@@ -144,7 +248,6 @@
                     this.createButton(button)
                 });
                 this.scene.add(this.buttonGroup);
-
             }
             getButtonPoint(phi, theta) {
                 let r = 500;
@@ -217,8 +320,6 @@
                 document.addEventListener('click', (event) => {
                     if (this.isShowModaling) return;
                     event.preventDefault();
-
-
                     let mouse = new THREE.Vector2();
                     //通过鼠标点击的位置计算出raycaster所需要的点的位置，以屏幕中心为原点，值的范围为-1到1.
                     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -275,7 +376,15 @@
             render() {
                 TWEEN.update();
                 //更新控制器
-                this.controls.update();
+                //this.controls.update();                
+                this.lat = Math.max(- 85, Math.min(85, this.lat));
+                this.phi = THREE.Math.degToRad(90 - this.lat);
+                this.theta = THREE.Math.degToRad(this.lon);
+                this.camera.position.x = this.distance * Math.sin(this.phi) * Math.cos(this.theta);
+                this.camera.position.y = this.distance * Math.cos(this.phi);
+                this.camera.position.z = this.distance * Math.sin(this.phi) * Math.sin(this.theta);
+                this.camera.lookAt(this.camera.target);
+
                 this.renderer.render(this.scene, this.camera);
             }
         }
