@@ -24,6 +24,8 @@
         <button id="playButton">播放暂停</button>
         <button id="view-fullscreen">全屏</button>
         <button id="cancel-fullscreen">关全屏</button>
+        <button id="addCubuButton">添加展示物体</button>
+        <button id="removeCubeButton">移除展示物体</button>
 
         <div class="md-wrap">
             <div class="md-close"></div>
@@ -86,7 +88,7 @@
                 this.onMouseDownLat = 0;
                 this.phi = 0;
                 this.theta = 0;
-                this.distance = 300;
+                this.distance = 10;
                 this.onPointerDownPointerX = 0;
                 this.onPointerDownPointerY = 0;
                 this.onPointerDownLon = 0;
@@ -95,6 +97,7 @@
                 this.camera;
                 this.video;
                 this.scene;
+                this.cubeModel; // 中央展示物体
 
                 this.initCamera();
                 this.initMesh();
@@ -171,7 +174,24 @@
                     } else {
                         video.pause();
                     }
-                })
+                });
+                addCubuButton.addEventListener('click', this.onAddCubeModel)
+                removeCubeButton.addEventListener('click', this.onRemoveCubeModel);
+            }
+
+            onAddCubeModel = () => {
+                // 添加立方体
+                var geometry = new THREE.BoxGeometry(100, 100, 100); // BoxGeometry（立方体）对象.包含顶点（vertices）和面（faces）
+                // 添加材质，使用Three的默认材质
+                var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                // Mesh（网格），包含一个几何体以及作用在此几何体上的材质，
+                this.cubeModel = new THREE.Mesh(geometry, material);
+                // 可以直接将网格对象放入到我们的场景中，并让它在场景中自由移动
+                this.scene.add(this.cubeModel); // 默认添加在(0,0,0)位置
+            }
+
+            onRemoveCubeModel = () => {
+                this.scene.remove(this.cubeModel); // 默认添加在(0,0,0)位置
             }
 
             onWindowResize = () => {
