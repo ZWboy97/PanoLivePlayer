@@ -17,7 +17,14 @@
 
 <body>
     <div id="container"></div>
+    <video id="video"></video>
+
     <div class="md-modal md-effect-3">
+        <button id="unmuteButton">声音</button>
+        <button id="playButton">播放暂停</button>
+        <button id="view-fullscreen">全屏</button>
+        <button id="cancel-fullscreen">关全屏</button>
+
         <div class="md-wrap">
             <div class="md-close"></div>
             <div class="md-main">
@@ -63,6 +70,7 @@
     <script type="text/javascript" src="./js/DeviceOrientationControls.js"></script>
     <script type="text/javascript" src="./js/Tween.js"></script>
     <script type="text/javascript" src="./js/classie.js"></script>
+    <script type="text/javascript" src="./js/fullscreen.js"></script>
     <script src="https://cdn.jsdelivr.net/hls.js/latest/hls.min.js"></script>
     <scripts src="http://res.wx.qq.com/open/js/jweixin-1.0.0.js"></scripts>
     <script type="text/javascript">
@@ -111,10 +119,12 @@
                 let geometry = new THREE.SphereGeometry(500, 60, 40); // 球体
                 geometry.scale(-1, 1, 1);
                 // 加载视频资源
-                var video = document.createElement('video');
+                var video = document.getElementById('video');
+                this.video = video;
                 video.width = 640;
                 video.height = 360;
                 video.loop = true;
+                video.muted = true;
                 video.setAttribute('webkit-playsinline', 'webkit-playsinline');
                 if (Hls.isSupported()) {
                     var hls = new Hls();
@@ -152,6 +162,16 @@
                     document.addEventListener('wheel', this.onDocumentMouseWheel, false);
                 }
                 window.addEventListener('resize', this.onWindowResize, false); //
+                unmuteButton.addEventListener('click', function () {
+                    video.muted = !video.muted;
+                });
+                playButton.addEventListener('click', () => {
+                    if (video.paused) {
+                        video.play();
+                    } else {
+                        video.pause();
+                    }
+                })
             }
 
             onWindowResize = () => {
